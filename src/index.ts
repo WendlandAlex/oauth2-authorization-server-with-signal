@@ -14,6 +14,7 @@ import type {
     UserAuthorizationRequest,
     AccessTokenRequest,
     AccessTokenResponse,
+    JWKSResponse,
     OpenIDConfigurationResponse,
 } from '../types/Oauth.ts';
 
@@ -36,7 +37,8 @@ await Auth.generateJWKwithKID();
 
 // JWKS endpoint (allow client to fetch public key and verify a JWT presented to it)
 router.get('/.well-known/jwks.json', (req, res) => {
-    res.status(200).json(Auth.getJWKS());
+    const jwks: JWKSResponse = Auth.getJWKS()
+    res.status(200).json(jwks);
 });
 
 // OIDC discovery endpoint (https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationResponse)
@@ -172,7 +174,7 @@ router.get('/authorize', async (req, res) => {
     }
 });
 
-//
+// confirm that the user knows the code that was delivered to their Signal device
 router.post('/verify-challenge', async (req, res) => {
     const { identifier, state, challenge_code } = req.body;
     const cacheKey = `${identifier}::${state}`;
@@ -214,7 +216,7 @@ router.post('/oauth/token', async (req, res) => {
             })
         }
 
-        // verify that the authorization code was signed with the same KID that was specified in the authorization code request
+        // verify that the authorization code was signed by the key having the same KID as was specified in the authorization code request
         if (!Auth.verifyAuthorizationCode(cacheEntry.signalUser, cacheEntry.kid, code)) {
             throw new Oauth2ValidationError({
                 safe: 'invalid authorization_code',
